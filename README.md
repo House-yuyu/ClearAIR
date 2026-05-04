@@ -1,7 +1,10 @@
 # :fire: ClearAIR: A Human-Visual-Perception-Inspired All-in-One Image Restoration (AAAI'2026)
 
-> [[arxiv](https://arxiv.org/abs/2601.02763)] 
-
+[![Paper](https://img.shields.io/badge/Paper-arXiv-red)](https://arxiv.org/abs/2601.02763)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10+-yellow.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-orange.svg)](https://pytorch.org/)
+![Visitors](https://visitor-badge.laobi.icu/badge?page_id=House-yuyu.CogRestore)
 
 This is the official PyTorch codes for the paper:
 
