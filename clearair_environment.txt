@@ -1,0 +1,45 @@
+# ClearAIR verified runtime environment
+#
+# Host validation: sigma03, 2026-07-12
+# Python: 3.11.13
+# CUDA/PyTorch: torch 2.8.0 + cu128, torchvision 0.23.0
+#
+# Install the repository first, then install this file with:
+#   python -m pip install -r clearair_environment.txt
+# The two editable third-party packages are installed and patched by
+# scripts/setup_real_aux.sh; their exact source commits are recorded below.
+
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+torch==2.8.0
+torchvision==0.23.0
+numpy==2.2.6
+Pillow==11.3.0
+scipy==1.16.2
+scikit-image==0.25.2
+opencv-python==4.12.0.88
+
+# ClearAIR real auxiliary stack
+accelerate==1.10.1
+bitsandbytes==0.47.0
+ftfy==6.3.1
+huggingface-hub==0.35.0
+hydra-core==1.3.2
+icecream==2.2.0
+iopath==0.1.10
+packaging==25.0
+sentencepiece==0.2.2
+transformers==4.46.3
+safetensors==0.6.2
+timm==1.0.20
+einops==0.8.1
+
+# Pinned third-party source trees (installed by scripts/setup_real_aux.sh)
+# DA-CLIP: https://github.com/Algolzw/daclip-uir.git @ c2cc14146faac85680b4cb39ece4ef9e2a7c7c24
+# SAM2:    https://github.com/facebookresearch/sam2.git @ 2b90b9f5ceec907a1c18123530e92e794ad901a4
+
+# Large model weights are intentionally not committed to GitHub. The setup
+# script downloads them from these official Hugging Face repositories:
+# DeQA-Score-Mix3: https://huggingface.co/zhiyuanyou/DeQA-Score-Mix3
+# SAM2.1 Hiera-Tiny: https://huggingface.co/facebook/sam2.1-hiera-tiny
+# DA-CLIP ViT-B/32: https://huggingface.co/weblzw/daclip-uir-ViT-B-32-irsde

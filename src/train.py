@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import random
 import time
 from pathlib import Path
 
@@ -55,8 +56,22 @@ def parse_args():
     p.add_argument("--save-every", type=int, default=10_000)
     p.add_argument("--device", type=str, default="cuda")
     p.add_argument("--resume", type=str, default=None)
-    p.add_argument("--dummy-aux", action="store_true",
-                   help="Use lightweight stand-ins for DeQA/SAM2/DA-CLIP.")
+    p.add_argument(
+        "--dummy-aux",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use lightweight stand-ins for DeQA/SAM2/DA-CLIP (default: true).",
+    )
+    p.add_argument("--aux-device", default=None, help="Device for frozen auxiliaries; defaults to --device.")
+    p.add_argument("--deqa-model", default="pretrained/DeQA-Score-Mix3")
+    p.add_argument("--deqa-4bit", action=argparse.BooleanOptionalAction, default=True)
+    p.add_argument("--sam2-model", default="pretrained/sam2/sam2.1_hiera_tiny.pt")
+    p.add_argument("--sam2-config", default="configs/sam2.1/sam2.1_hiera_t.yaml")
+    p.add_argument("--sam2-points-per-batch", type=int, default=16)
+    p.add_argument("--sam2-points-per-crop", type=int, default=4)
+    p.add_argument("--sam2-pred-iou-thresh", type=float, default=0.70)
+    p.add_argument("--daclip-checkpoint", default="pretrained/daclip/daclip_ViT-B-32.pt")
+    p.add_argument("--seed", type=int, default=3407)
     return p.parse_args()
 
 
@@ -81,6 +96,10 @@ def psnr(pred: torch.Tensor, target: torch.Tensor) -> float:
 # ---------------------------------------------------------------------------
 def main():
     args = parse_args()
+    random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
     save_dir = Path(args.save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
@@ -103,7 +122,18 @@ def main():
     train_iter = cycle(train_loader)
 
     # ---- model -------------------------------------------------------
-    cfg = ClearAIRConfig(dummy_auxiliaries=args.dummy_aux)
+    cfg = ClearAIRConfig(
+        dummy_auxiliaries=args.dummy_aux,
+        auxiliary_device=args.aux_device or args.device,
+        deqa_model_path=args.deqa_model,
+        deqa_load_in_4bit=args.deqa_4bit,
+        sam2_model_path=args.sam2_model,
+        sam2_config=args.sam2_config,
+        sam2_points_per_batch=args.sam2_points_per_batch,
+        sam2_points_per_crop=args.sam2_points_per_crop,
+        sam2_pred_iou_thresh=args.sam2_pred_iou_thresh,
+        daclip_checkpoint_path=args.daclip_checkpoint,
+    )
     model = ClearAIR(cfg).to(device)
 
     loss_fn = ClearAIRLoss(ClearAIRLossConfig()).to(device)

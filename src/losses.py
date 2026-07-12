@@ -28,13 +28,13 @@ def _random_crop_resize(images: torch.Tensor, scale: float = 0.7) -> torch.Tenso
     """Random crop a (scale * H, scale * W) patch and resize back."""
     b, _, h, w = images.shape
     ch, cw = int(h * scale), int(w * scale)
-    out = torch.empty_like(images)
+    crops = []
     for i in range(b):
         top = torch.randint(0, h - ch + 1, (1,)).item()
         left = torch.randint(0, w - cw + 1, (1,)).item()
         crop = images[i:i + 1, :, top:top + ch, left:left + cw]
-        out[i] = F.interpolate(crop, size=(h, w), mode="bilinear", align_corners=False)
-    return out
+        crops.append(F.interpolate(crop, size=(h, w), mode="bilinear", align_corners=False))
+    return torch.cat(crops, dim=0)
 
 
 def _color_jitter(images: torch.Tensor, strength: float = 0.4) -> torch.Tensor:
@@ -74,7 +74,6 @@ class ICRMLoss(nn.Module):
         super().__init__()
         self.cfg = cfg or ICRMConfig()
 
-    @torch.no_grad()
     def _augment(self, restored: torch.Tensor):
         # Eq. 15: weak augmentation
         weak = _random_crop_resize(restored, scale=self.cfg.weak_scale)
