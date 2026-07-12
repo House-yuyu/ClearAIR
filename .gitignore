@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+checkpoints/
+outputs/
+wandb/
+pretrained/
+third_party/
+aux_cache/

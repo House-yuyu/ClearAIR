@@ -78,6 +78,15 @@ class ClearAIRConfig:
 
     # whether auxiliaries are wired to real frozen models or use dummy stand-ins
     dummy_auxiliaries: bool = True
+    auxiliary_device: str = "cuda"
+    deqa_model_path: str = "pretrained/DeQA-Score-Mix3"
+    deqa_load_in_4bit: bool = True
+    sam2_model_path: str = "pretrained/sam2/sam2.1_hiera_tiny.pt"
+    sam2_config: str = "configs/sam2.1/sam2.1_hiera_t.yaml"
+    sam2_points_per_batch: int = 16
+    sam2_points_per_crop: int = 4
+    sam2_pred_iou_thresh: float = 0.70
+    daclip_checkpoint_path: str = "pretrained/daclip/daclip_ViT-B-32.pt"
 
 
 # ---------------------------------------------------------------------------
@@ -158,19 +167,28 @@ class ClearAIR(nn.Module):
         ffn = cfg.ffn_expansion
 
         # ---- frozen auxiliary networks ---------------------------------
+        real_aux = None
+        if not cfg.dummy_auxiliaries:
+            from .real_auxiliary import build_real_auxiliaries
+
+            real_aux = build_real_auxiliaries(cfg)
+
         self.iqa = MLLMIQA(
             hidden_dim=cfg.iqa_hidden_dim,
             out_dim=cfg.iqa_out_dim,
             dummy=cfg.dummy_auxiliaries,
+            mllm=None if real_aux is None else real_aux.deqa,
         )
         self.sgu = SemanticGuidanceUnit(
             num_masks=cfg.num_masks,
             mask_dropout=cfg.mask_dropout,
             dummy=cfg.dummy_auxiliaries,
+            sam2=None if real_aux is None else real_aux.sam2,
         )
         self.task_id = TaskIdentifier(
             embed_dim=cfg.fc_dim,
             dummy=cfg.dummy_auxiliaries,
+            da_clip=None if real_aux is None else real_aux.daclip,
         )
 
         # ---- IQA adapter (Eq. 3) and degradation prompt (Eq. 10) -------

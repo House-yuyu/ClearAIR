@@ -1,0 +1,22 @@
+--- a/modeling_llama2.py
++++ b/modeling_llama2.py
+@@ -157,7 +157,7 @@ class LlamaAttention(nn.Module):
+         kv_seq_len = key_states.shape[-2]
+         if past_key_value is not None:
+             kv_seq_len += past_key_value[0].shape[-2]
+-        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
++        cos, sin = self.rotary_emb(value_states, position_ids)
+         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+ 
+         if past_key_value is not None:
+--- a/modeling_mplug_owl2_huggingface.py
++++ b/modeling_mplug_owl2_huggingface.py
+@@ -245,6 +245,8 @@ class MPLUGOwl2LlamaModel(MPLUGOwl2MetaModel, LlamaModel):
+ 
+     def __init__(self, config: MPLUGOwl2Config):
+         super(MPLUGOwl2LlamaModel, self).__init__(config)
++        self._use_sdpa = False
++        self._use_flash_attention_2 = False
+ 
+ 
+ class MPLUGOwl2LlamaForCausalLM(LlamaForCausalLM, MPLUGOwl2MetaForCausalLM):

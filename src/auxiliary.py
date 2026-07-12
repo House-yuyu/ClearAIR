@@ -19,12 +19,15 @@ class MLLMIQA(nn.Module):
     single hook `_extract_quality_state(images, prompt_text)` that the user
     overrides to plug in their MLLM of choice.
 
-    The default `dummy=True` mode returns a learnable score embedding so that
-    the rest of the pipeline can be trained / unit-tested even when the heavy
-    MLLM is not loaded.
+    The default `dummy=True` mode returns a lightweight frozen proxy embedding
+    so that the rest of the pipeline can be shape-tested without the heavy
+    MLLM. It is not a replacement for DeQA in paper-reproduction experiments.
     """
 
-    DEFAULT_PROMPT = "The quality of this image is"
+    DEFAULT_PROMPT = (
+        "USER: How would you rate the quality of this image?\n"
+        "<|image|>\nASSISTANT: The quality of the image is"
+    )
 
     def __init__(
         self,
@@ -54,8 +57,12 @@ class MLLMIQA(nn.Module):
                 p.requires_grad = False
 
         self.proj = nn.Identity() if hidden_dim == out_dim else nn.Linear(hidden_dim, out_dim)
+        if dummy:
+            # Dummy mode is for pipeline validation only. Its proxy must not be
+            # counted as a trainable substitute for the frozen DeQA model.
+            for p in self.parameters():
+                p.requires_grad = False
 
-    # ---- override this when wiring a real MLLM ----------------------------
     def _extract_quality_state(self, images: torch.Tensor, prompt: str) -> torch.Tensor:
         """Return Q with shape (B, hidden_dim).
 
@@ -66,15 +73,22 @@ class MLLMIQA(nn.Module):
              the predicted 'quality level' token,
           4. returning that hidden state.
         """
-        raise NotImplementedError
+        return self.mllm(images, prompt)
 
     # ----------------------------------------------------------------------
-    @torch.no_grad()
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-        if self.dummy:
-            q = self.dummy_encoder(images)
-        else:
-            q = self._extract_quality_state(images, self.DEFAULT_PROMPT)
+        with torch.no_grad():
+            if self.dummy:
+                q = self.dummy_encoder(images)
+            else:
+                q = self._extract_quality_state(images, self.DEFAULT_PROMPT)
+        # External backends use inference_mode; clone after leaving that
+        # context so trainable adapters may safely save this tensor backward.
+        q = q.clone()
+        projection_parameter = next(self.proj.parameters(), None)
+        target_device = projection_parameter.device if projection_parameter is not None else images.device
+        target_dtype = projection_parameter.dtype if projection_parameter is not None else q.dtype
+        q = q.to(device=target_device, dtype=target_dtype)
         return self.proj(q)
 
 
@@ -109,10 +123,9 @@ class SemanticGuidanceUnit(nn.Module):
             for p in self.sam2.parameters():
                 p.requires_grad = False
 
-    # ---- override when wiring a real SAM2 --------------------------------
     def _segment(self, images: torch.Tensor) -> torch.Tensor:
         """Return masks (B, N_m, H, W) in {0, 1}."""
-        raise NotImplementedError
+        return self.sam2(images, num_masks=self.num_masks)
 
     # ---------------------------------------------------------------------
     def _dummy_masks(self, images: torch.Tensor) -> torch.Tensor:
@@ -133,6 +146,7 @@ class SemanticGuidanceUnit(nn.Module):
     @torch.no_grad()
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         masks = self._dummy_masks(images) if self.dummy else self._segment(images)
+        masks = masks.clone()
 
         # mask dropout: merge dropped masks into a single background channel
         if self.training and self.mask_dropout > 0:
@@ -181,9 +195,13 @@ class TaskIdentifier(nn.Module):
             for p in self.da_clip.parameters():
                 p.requires_grad = False
 
-    # ---- override when wiring real DA-CLIP -------------------------------
+        if dummy:
+            # Keep the test-only proxy consistent with the frozen paper prior.
+            for p in self.parameters():
+                p.requires_grad = False
+
     def _encode(self, images: torch.Tensor):
-        raise NotImplementedError
+        return self.da_clip(images)
 
     # ---------------------------------------------------------------------
     @torch.no_grad()
@@ -191,4 +209,8 @@ class TaskIdentifier(nn.Module):
         if self.dummy:
             feat = self.dummy_encoder(images)
             return self.fc_head(feat), self.fd_head(feat)
-        return self._encode(images)
+        fc, fd = self._encode(images)
+        return (
+            fc.clone().to(images.device, dtype=images.dtype),
+            fd.clone().to(images.device, dtype=images.dtype),
+        )
