@@ -29,11 +29,14 @@ This is the official PyTorch codes for the paper:
 If you find our repo useful for your research, please consider citing our paper:
 
 ```bibtex
-@ARTICLE{ClearAIR,
-  author={Zhang, Xu and Zhang, Huan and Wang, Guoli and Zhang, Qian and Zhang, Lefei and Du, Bo},
-  journal={arXiv preprint arXiv:2601.02763},
-  title={ClearAIR: A Human-Visual-Perception-Inspired All-in-One Image Restoration}, 
-  year={2026},
+@article{ClearAIR,
+title={ClearAIR: A Human-Visual-Perception-Inspired All-in-One Image Restoration}, volume={40}, 
+number={15}, 
+journal={Proceedings of the AAAI Conference on Artificial Intelligence}, 
+author={Zhang, Xu and Zhang, Huan and Wang, Guoli and Zhang, Qian and Zhang, Lefei}, 
+year={2026}, 
+month={Mar.}, 
+pages={12861–12869} 
 }
 ```
 
