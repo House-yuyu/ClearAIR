@@ -1,31 +1,3 @@
-"""
-Main ClearAIR model.
-
-Architecture (Fig. 2 of the paper):
-
-  Input ─► Extraction (3x3 conv) ─►  L1 ─► L2 ─► L3 ─► Bottleneck (L4)
-                                      │     │     │
-                                      ▼     ▼     ▼
-                                     skip  skip  skip
-                                      │     │     │
-                                            ◄─────────────────────────────
-            Output ◄─ Reconstruction ◄─ L1' ◄─ L2' ◄─ L3' ◄─ Bottleneck
-
-Each level (encoder & decoder) consists of:
-    PTB × n_blocks_first_half
-    │
-    ▼  ── conditioning block ──
-    ├─► QGM(score_emb)
-    ├─► SCA(semantic_features)
-    └─► DAM(content, deg_prompt)
-    │
-    ▼
-    PTB × n_blocks_second_half
-
-Block counts per level (paper, level-1..level-4): [3, 5, 6, 8].
-We split each level's PTBs in half around a single conditioning unit so the
-modules' influence reaches every resolution of the U-Net.
-"""
 
 from __future__ import annotations
 
@@ -103,7 +75,9 @@ class ConditionedLevel(nn.Module):
         fc_dim: int,
         ffn_expansion: float = 2.66,
         bias: bool = False,
-        sca_heads: int = 4,
+        # Three heads keep the paper's 48/96/192/384 channel widths
+        # compatible with CUDA fused attention (head dims 16/32/64).
+        sca_heads: int = 3,
         dam_heads: int = 4,
     ):
         super().__init__()
