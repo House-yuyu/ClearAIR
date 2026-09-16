@@ -14,12 +14,12 @@
 
 This is the official PyTorch codes for the paper:
 
->**ClearAIR: A Human-Visual-Perception-Inspired All-in-One Image Restoration**<br>  [Xu Zhang<sup>1</sup>](https://house-yuyu.github.io/), [Huan Zhang<sup>2</sup>](https://scholar.google.com.hk/citations?user=bJjd_kMAAAAJ&hl=zh-CN), [Guoli Wang<sup>3</sup>](https://scholar.google.com.hk/citations?user=z-25fk0AAAAJ&hl=zh-CN), [Qian Zhang<sup>3</sup>](https://scholar.google.com.hk/citations?user=pCY-bikAAAAJ&hl=zh-CN), [Lefei Zhang<sup>1📧</sup>](https://scholar.google.com.hk/citations?user=BLKHwNwAAAAJ&hl=zh-CN)<br>
-> <sup>1</sup>Wuhan University, <sup>2</sup>Guangdong University of Technology, <sup>3</sup>Horizon Robotics<br>
-> <sup>📧</sup>Corresponding author.
+>**ClearAIR: A Human-Visual-Perception-Inspired All-in-One Image Restoration**<br>  
+>[Xu Zhang<sup>1</sup>](https://house-yuyu.github.io/), [Huan Zhang<sup>2</sup>](https://scholar.google.com.hk/citations?user=bJjd_kMAAAAJ&hl=zh-CN), [Guoli Wang<sup>3</sup>](https://scholar.google.com.hk/citations?user=z-25fk0AAAAJ&hl=zh-CN), [Qian Zhang<sup>3</sup>](https://scholar.google.com.hk/citations?user=pCY-bikAAAAJ&hl=zh-CN), [Lefei Zhang<sup>1📧</sup>](https://scholar.google.com.hk/citations?user=BLKHwNwAAAAJ&hl=zh-CN)<br>
+><sup>1</sup>Wuhan University, <sup>2</sup>Guangdong University of Technology, <sup>3</sup>Horizon Robotics<br>
+><sup>📧</sup>Corresponding author.
 
 ![teaser_img](fig/model.png)
-
 
 :star: If ClearAIR is helpful to your images or projects, please help star this repo. Thank you! :point_left:
 
@@ -28,7 +28,7 @@ This is the official PyTorch codes for the paper:
 
 ClearAIR follows the coarse-to-fine human-visual-perception order described in the paper:
 global quality assessment (**How**), semantic region awareness (**Where**), local degradation recognition
-(**What**), then internal-clue reuse for fine details. 
+(**What**), then internal-clue reuse for fine details.
 
 
 ## Installation
@@ -74,6 +74,7 @@ The full smoke test uses the paper-scale 256x256 configuration and is intentiona
 python -m clearair.smoke_test --device cuda
 ```
 
+
 ## Training
 
 The defaults follow the paper's optimizer and crop settings: AdamW, learning rate `2e-4`, batch size `4`,
@@ -111,21 +112,29 @@ configuration. Frozen DeQA/SAM2/DA-CLIP weights are deliberately excluded. Resum
 clearair-train --data-root /path/to/aioir_data --resume checkpoints/three_deg/clearair_iter10000.pth
 ```
 
+
+## Pretrained Weights
+
+Pretrained weights are available via **Baidu Netdisk**:
+
+- **Baidu Netdisk:** [Download](https://pan.baidu.com/s/1Mv5o0KPOjlMB-MhF4HcYtQ)
+- **Extraction code:** 96q7
+
+
 ## Inference
 
 The inference command accepts one image or a directory and pads images to a multiple of eight before
-restoration. Pass `--no-dummy-aux` for a checkpoint trained with the real stack:
+restoration. Pass `--no-dummy-aux` when using the released checkpoint with the real auxiliary stack:
 
 ```bash
 clearair-infer \
   --no-dummy-aux \
-  --checkpoint checkpoints/three_deg/clearair_iter300000.pth \
+  --checkpoint checkpoints/clearair.pth \
   --input /path/to/degraded_images \
   --output outputs/restored \
   --device cuda
 ```
 
-No official pretrained ClearAIR restoration checkpoint is currently bundled with this repository.
 
 ## Real auxiliary implementation
 
@@ -147,6 +156,7 @@ The verified one-iteration command, outputs, environment, and weight checksums a
 
 This code is released under the [MIT License](LICENSE).
 
+
 ## :book: Citation
 
 If you find our repo useful for your research, please consider citing our paper:
@@ -163,11 +173,11 @@ pages={12861–12869}
 }
 ```
 
+
 ## :postbox: Contact
 
-If you have any questions, please feel free to reach us out at <a href="zhangx0802@whu.edu.cn">zhangx0802@whu.edu.cn</a>.
+If you have any questions, please feel free to reach us out at <a href="mailto:zhangx0802@whu.edu.cn">zhangx0802@whu.edu.cn</a>.
 
 <div align="center">
 
-
-
+</div>
