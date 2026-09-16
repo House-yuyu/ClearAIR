@@ -1,13 +1,3 @@
-"""
-The three conditioning modules of ClearAIR.
-
-QGM  : Quality Guidance Module        (consumes MLLM-IQA score embedding)
-SCA  : Semantic Cross-Attention       (consumes SGU semantic feature)
-DAM  : Degradation-Aware Module       (consumes content + degradation prompt
-                                       from the Task Identifier)
-
-All equations refer to the ClearAIR paper.
-"""
 
 from __future__ import annotations
 
@@ -95,6 +85,12 @@ class SemanticCrossAttention(nn.Module):
         self.scale = self.head_dim ** -0.5
 
         self.norm = LayerNorm2d(dim)
+        # The semantic feature is a mask-pooled residual feature from another
+        # encoder/decoder level.  Unlike the query path it is not otherwise
+        # normalized, so feeding it directly into K/V creates a cross-scale
+        # positive-feedback loop as residual magnitudes grow.  Normalize the
+        # K/V source independently while preserving its spatial semantics.
+        self.semantic_norm = LayerNorm2d(dim)
         self.q_proj = nn.Conv2d(dim, dim, kernel_size=1, bias=bias)
         self.k_proj = nn.Conv2d(dim, dim, kernel_size=1, bias=bias)
         self.v_proj = nn.Conv2d(dim, dim, kernel_size=1, bias=bias)
@@ -108,10 +104,11 @@ class SemanticCrossAttention(nn.Module):
         b, c, h, w = x.shape
         residual = x
         x_norm = self.norm(x)
+        semantic_norm = self.semantic_norm(f_sem)
 
         q = self.q_proj(x_norm)
-        k = self.k_proj(f_sem)
-        v = self.v_proj(f_sem)
+        k = self.k_proj(semantic_norm)
+        v = self.v_proj(semantic_norm)
 
         # (B, heads, head_dim, HW)
         def _split(t: torch.Tensor) -> torch.Tensor:
@@ -119,9 +116,29 @@ class SemanticCrossAttention(nn.Module):
 
         q, k, v = _split(q), _split(k), _split(v)
 
-        attn = torch.matmul(q.transpose(-2, -1), k) * self.scale  # (B, h, HW, HW)
-        attn = attn.softmax(dim=-1)
-        out = torch.matmul(v, attn.transpose(-2, -1))             # (B, h, head_dim, HW)
+        query = q.transpose(-2, -1).contiguous()
+        key = k.transpose(-2, -1).contiguous()
+        value = v.transpose(-2, -1).contiguous()
+        attention_dtype = query.dtype
+        if query.is_cuda and attention_dtype not in (torch.float16, torch.bfloat16):
+            query = query.to(torch.bfloat16)
+            key = key.to(torch.bfloat16)
+            value = value.to(torch.bfloat16)
+        if query.is_cuda:
+            try:
+                from torch.nn.attention import SDPBackend, sdpa_kernel
+
+                with sdpa_kernel([SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]):
+                    out = F.scaled_dot_product_attention(query, key, value, dropout_p=0.0)
+            except (ImportError, RuntimeError):
+                # Older torch releases do not expose torch.nn.attention.
+                with torch.backends.cuda.sdp_kernel(
+                    enable_flash=True, enable_math=False, enable_mem_efficient=True
+                ):
+                    out = F.scaled_dot_product_attention(query, key, value, dropout_p=0.0)
+        else:
+            out = F.scaled_dot_product_attention(query, key, value, dropout_p=0.0)
+        out = out.to(attention_dtype).transpose(-2, -1)             # (B, h, head_dim, HW)
         out = out.reshape(b, c, h, w)
         return residual + self.out_proj(out)
 
