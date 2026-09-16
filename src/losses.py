@@ -1,15 +1,3 @@
-"""
-Losses for ClearAIR.
-
-Total loss (Eq. 1):
-    L_total = L1 + alpha * L_inter,        alpha = 0.25
-
-Internal Clue Reuse Mechanism — ICRM (Fig. 3, Eq. 15-17):
-    I_r       : restored output
-    I_r^w     : weak augmentation of I_r           (random crop)
-    I_r^s     : strong augmentation of I_r^w       (color jitter + Gaussian blur)
-    L_inter   = gamma * ||I_r^w - I_r^s||_2^2,     gamma = 0.05
-"""
 
 from __future__ import annotations
 
@@ -65,6 +53,7 @@ class ICRMConfig:
     blur_kernel_size: int = 5
     blur_sigma: float = 1.0
     gamma: float = 0.05                  # initial weight, Eq. 17
+    clamp_input: bool = True
 
 
 class ICRMLoss(nn.Module):
@@ -87,6 +76,8 @@ class ICRMLoss(nn.Module):
         return weak, strong
 
     def forward(self, restored: torch.Tensor) -> torch.Tensor:
+        if self.cfg.clamp_input:
+            restored = restored.clamp(0.0, 1.0)
         weak, strong = self._augment(restored)
         # Eq. 17: L2 distance, weighted by gamma
         diff = (weak - strong).pow(2).mean()
